@@ -4,8 +4,18 @@ A test/demo application for the UNITH AI Core Client SDK, demonstrating digital 
 
 ## GitHub Pages Deployment
 
-This repository is configured to be deployed via GitHub Pages using the `/dist` folder.
+This repository uses GitHub Actions to automatically build and deploy to GitHub Pages.
 
+### Setup Instructions
+
+1. Go to your GitHub repository: https://github.com/borisaflr/unith-sdk-testing
+2. Navigate to **Settings** > **Pages**
+3. Under **Source**, select:
+   - **GitHub Actions**
+4. Push any commit to the `main` branch to trigger deployment
+5. Your site will be available at: `https://borisaflr.github.io/unith-sdk-testing/`
+
+The deployment happens automatically on every push to `main` via the `.github/workflows/deploy.yml` workflow.
 ### Local Development
 
 ```bash
