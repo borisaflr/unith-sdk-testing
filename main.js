@@ -8,6 +8,8 @@ const CONFIG = {
 };
 
 let conversation = null;
+let isAiSpeaking = false;
+let microphoneStatus = "OFF";
 
 // Logging
 function log(message, type = "info") {
@@ -18,6 +20,47 @@ function log(message, type = "info") {
   logDiv.appendChild(entry);
   logDiv.scrollTop = logDiv.scrollHeight;
   console.log(message);
+}
+
+//  Update microphone status in UI
+function updateMicrophoneStatus(status) {
+  microphoneStatus = status;
+
+  const statusDiv = document.getElementById("mic-status");
+  const micBtn = document.getElementById("mic-btn");
+
+  // Update status display
+  statusDiv.textContent = `Microphone: ${status}`;
+  statusDiv.className = `mic-status ${status.toLowerCase()}`;
+
+  // Update microphone button
+  if (status === "ON") {
+    micBtn.textContent = " Stop Listening";
+    micBtn.classList.add("listening");
+  } else if (status === "PROCESSING") {
+    micBtn.textContent = " Processing...";
+    micBtn.classList.add("listening");
+  } else {
+    // OFF
+    micBtn.textContent = " Start Listening";
+    micBtn.classList.remove("listening");
+  }
+
+  log(` Microphone: ${status}`, "info");
+}
+
+//  Show transcript preview
+function showTranscriptPreview(transcript) {
+  const previewDiv = document.getElementById("transcript-preview");
+  previewDiv.textContent = `"${transcript}"`;
+  previewDiv.style.color = "#333";
+}
+
+//  Clear transcript preview
+function clearTranscriptPreview() {
+  const previewDiv = document.getElementById("transcript-preview");
+  previewDiv.textContent = "";
+  previewDiv.style.color = "#666";
 }
 
 // Add conversation message to UI
@@ -57,6 +100,18 @@ function addConversationMessage(sender, text, visible) {
 const connectBtn = document.getElementById("connect-btn");
 const startBtn = document.getElementById("start-btn");
 const disconnectBtn = document.getElementById("disconnect-btn");
+const micBtn = document.getElementById("mic-btn");
+
+micBtn.addEventListener("click", () => {
+  if (!conversation) {
+    log(" Please connect and start session first", "error");
+    return;
+  }
+
+  // Toggle the microphone
+  conversation.toggleMicrophone();
+  log(` Toggling microphone...`, "info");
+});
 
 // Message input references
 const messageInput = document.getElementById("message-input");
@@ -74,8 +129,36 @@ connectBtn.addEventListener("click", async () => {
       apiKey: CONFIG.apiKey,
       element: document.getElementById("video-container"),
       allowWakeLock: true,
+      microphoneProvider: "azure",
 
       // callbacks
+      microphoneOptions: {
+        // Called when speech is recognized
+        onMicrophoneSpeechRecognitionResult: ({ transcript }) => {
+          log(` Recognized: "${transcript}"`, "message");
+          showTranscriptPreview(transcript);
+
+          // IMPORTANT: Manually send the transcript
+          conversation.sendMessage(transcript);
+
+          // Clear preview after sending
+          setTimeout(() => {
+            clearTranscriptPreview();
+          }, 2000);
+        },
+
+        // Called when microphone status changes
+        onMicrophoneStatusChange: ({ status }) => {
+          updateMicrophoneStatus(status);
+        },
+
+        // Called when there's a microphone error
+        onMicrophoneError: ({ message }) => {
+          log(` Microphone error: ${message}`, "error");
+          updateMicrophoneStatus("OFF");
+        },
+      },
+      //onConnect STATUS
       onConnect: ({ userId, headInfo, microphoneAccess }) => {
         log(" CONNECTED!", "success");
         log(`User ID: ${userId}`, "info");
@@ -134,10 +217,13 @@ startBtn.addEventListener("click", async () => {
     await conversation.startSession();
     log(" Session started! Audio/video playback enabled", "success");
 
-    // Enable messaging after session starts
+    // Enable messaging
     messageInput.disabled = false;
     sendBtn.disabled = false;
-    messageInput.focus(); // Focus on input
+    messageInput.focus();
+
+    //  Enable microphone button
+    document.getElementById("mic-btn").disabled = false;
   } catch (error) {
     log(` Failed to start session: ${error.message}`, "error");
   }
@@ -185,10 +271,16 @@ disconnectBtn.addEventListener("click", async () => {
     connectBtn.disabled = false;
     startBtn.disabled = true;
     disconnectBtn.disabled = true;
-    //  Disable messaging
+
+    // Disable messaging
     messageInput.disabled = true;
     sendBtn.disabled = true;
     messageInput.value = "";
+
+    //  Disable and reset microphone
+    micBtn.disabled = true;
+    updateMicrophoneStatus("OFF");
+    clearTranscriptPreview();
 
     conversation = null;
   } catch (error) {
