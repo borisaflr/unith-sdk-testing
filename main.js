@@ -293,6 +293,11 @@ disconnectBtn.addEventListener("click", async () => {
 document.addEventListener("keydown", (event) => {
   // Check if spacebar was pressed
   if (event.code === "Space" || event.key === " ") {
+    // Ignore if user is typing in the message input
+    if (document.activeElement === messageInput) {
+      return;
+    }
+    
     // Make sure conversation exists
     if (conversation) {
       event.preventDefault(); // Prevent page scroll
